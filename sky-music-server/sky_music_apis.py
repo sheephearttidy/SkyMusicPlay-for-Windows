@@ -159,9 +159,12 @@ def open_files(request: dict):
             os.startfile(os.path.join(getResourcesPath(None), request["type"]))
 
 def get_update():
-   response = requests.get('https://gitee.com/WindHide/SkyMusicPlay-for-Windows/raw/main/.version')
-   if response.status_code == 200:
-       return json.loads(response.text)
+   try:
+       response = requests.get('https://gitee.com/WindHide/SkyMusicPlay-for-Windows/raw/main/.version', timeout=5)
+       if response.status_code == 200:
+           return json.loads(response.text)
+   except requests.RequestException:
+       pass
    return "404"
 
 #  下面放识别相关的调用

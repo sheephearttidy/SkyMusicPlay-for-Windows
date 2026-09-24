@@ -50,8 +50,7 @@ def set_config(request: dict):
             GlobalVariable.sheld = float(request["value"])
 
 def get_config(request: dict):
-    configValue = eval("GlobalVariable." + request["name"])
-    return configValue
+    return getattr(GlobalVariable, request["name"])
 
 def favorite_music(request: dict):
     src = os.path.join(getResourcesPath(request['type']), request['fileName'] + ".txt")
