@@ -99,10 +99,12 @@ async def create_upload_files_user(file: UploadFile):
     return "ok"
 
 def translate(request: dict):
-    from windhide.musicToSheet.process_audio import process_directory_with_progress
+    from windhide.musicToSheet.process_audio import process_directory_with_progress, process_directory_simple
     match request["operate"]:
         case 'translate':
             process_directory_with_progress(request["value"])
+        case 'translate_simple':
+            process_directory_simple()
     process_sheet_rename_time(isImportOrTranslate=True)
     return "ok"
 

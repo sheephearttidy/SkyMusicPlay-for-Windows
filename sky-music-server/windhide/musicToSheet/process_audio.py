@@ -18,6 +18,126 @@ special_note_mapping = {'_C_c¹':{62:57,64:59,65:60,},'c_c²':{74:69,76:71,77:72
 def get_dynamic_time_merge_threshold(bpm):
     return max(GlobalVariable.merge_min, min(GlobalVariable.merge_max, int(60000 / bpm / 4)))  # 限制阈值在 范围区间
 
+# ---------- 一键转谱（傻瓜式） ----------
+# 游戏标准 15 键对应的 C 大调音阶：Key0=中央C(60) ... Key14=高音C(84)
+STANDARD_KEYS = [60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84]
+PITCH_TO_KEY = {pitch: f"1Key{index}" for index, pitch in enumerate(STANDARD_KEYS)}
+KEYBOARD_LOW, KEYBOARD_HIGH = STANDARD_KEYS[0], STANDARD_KEYS[-1]
+
+
+def snap_to_standard_key(pitch):
+    """把任意音高折叠进标准 15 键区间，黑键吸附到最近的大调音（距离相同取较低音）"""
+    while pitch < KEYBOARD_LOW:
+        pitch += 12
+    while pitch > KEYBOARD_HIGH:
+        pitch -= 12
+    if pitch in PITCH_TO_KEY:
+        return PITCH_TO_KEY[pitch]
+    return PITCH_TO_KEY[min(STANDARD_KEYS, key=lambda p: (abs(p - pitch), p))]
+
+
+def find_best_transpose(pitches):
+    """穷举 ±2 个八度的移调量，选出让最多音符原生落在 15 键内的偏移（需吸附的半音按半分计）"""
+    best_offset, best_score = 0, -1.0
+    for offset in range(-24, 25):
+        score = 0.0
+        for pitch in pitches:
+            transposed = pitch + offset
+            if KEYBOARD_LOW <= transposed <= KEYBOARD_HIGH:
+                score += 1.0 if transposed in PITCH_TO_KEY else 0.5
+        if score > best_score:
+            best_score, best_offset = score, offset
+    return best_offset
+
+
+def process_midi_to_txt_auto(input_path, output_path):
+    """一键转谱：自动选调、自动折叠超范围音、自动吸附黑键，只输出一个标准 15 键谱子"""
+    midi = pretty_midi.PrettyMIDI(input_path)
+    bpm = get_bpm_from_midi(input_path)
+    time_merge_threshold = get_dynamic_time_merge_threshold(bpm)
+    notes, all_pitches = [], []
+
+    for instrument in midi.instruments:
+        if not instrument.is_drum:
+            for note in instrument.notes:
+                if note.velocity < GlobalVariable.velocity_filter:
+                    continue
+                all_pitches.append(note.pitch)
+                notes.append({'time': int(note.start * 1000), 'pitch': note.pitch})
+
+    if not notes:
+        print(f"跳过没有有效音符的文件: {input_path}")
+        return
+
+    offset = find_best_transpose(all_pitches)
+    for note in notes:
+        note['key'] = snap_to_standard_key(note['pitch'] + offset)
+
+    notes.sort(key=lambda x: x['time'])
+    merged_notes, last_time, temp_keys = [], None, []
+
+    for note in notes:
+        if last_time is None or note['time'] - last_time <= time_merge_threshold:
+            temp_keys.append(note['key'])
+        else:
+            merged_notes.extend({'time': last_time, 'key': k} for k in merge_keys(temp_keys))
+            temp_keys = [note['key']]
+        last_time = note['time']
+
+    merged_notes.extend({'time': last_time, 'key': k} for k in merge_keys(temp_keys))
+    output = [{
+        "name": os.path.basename(input_path).replace("_basic_pitch.mid", "") + "_Auto",
+        "author": "skyMusic-WindHide",
+        "transcribedBy": "WindHide's Software",
+        "bpm": bpm,
+        "bitsPerPage": 15,
+        "pitchLevel": 0,
+        "isComposed": True,
+        "songNotes": merged_notes,
+        "isEncrypted": False,
+    }]
+
+    with open(output_path, 'w') as f:
+        json.dump(output, f, indent=4)
+
+
+def process_directory_simple(output_dir=getResourcesPath("myTranslate")):
+    """一键转谱入口：无需任何参数，每首歌只生成一个自动选调的谱子"""
+    GlobalVariable.overall_progress = 0
+    os.makedirs(output_dir, exist_ok=True)
+    files_to_process = [f for f in os.listdir(getResourcesPath("translateOriginalMusic"))
+                        if f.endswith(('.mp3', '.ogg', '.wav', '.flac', '.mid', '.m4a'))]
+
+    total_files = len(files_to_process)
+    if not total_files:
+        print("没有找到需要处理的文件")
+        return
+
+    for idx, file in enumerate(files_to_process):
+        if "_ok" in file:
+            continue
+
+        GlobalVariable.now_translate_text = [f"{idx + 1}/{total_files}", file]
+        fileNameNoEnd = file.rsplit('.', 1)[0]
+        midFilePath = os.path.join(getResourcesPath("translateMID"), f"{fileNameNoEnd}_basic_pitch")
+        musicFilePath = os.path.join(getResourcesPath("translateOriginalMusic"), file)
+
+        if not file.endswith(".mid"):
+            inference(input_path=musicFilePath)
+        else:
+            midFilePath = os.path.join(getResourcesPath("translateOriginalMusic"), f"{fileNameNoEnd}")
+
+        process_midi_to_txt_auto(midFilePath + ".mid",
+                                 os.path.join(output_dir, f"{fileNameNoEnd}_Auto.txt"))
+
+        new_file_path = os.path.join(getResourcesPath("translateOriginalMusic"),
+                                     f"{fileNameNoEnd}_ok.{file.split('.')[-1]}")
+        os.rename(os.path.join(getResourcesPath("translateOriginalMusic"), file), new_file_path)
+        print(f"已将文件 {file} 重命名为 {new_file_path}")
+        GlobalVariable.overall_progress = ((idx + 1) / total_files) * 100
+
+    GlobalVariable.overall_progress = 100
+
 # 15 个音符与键盘按键的映射
 def get_bpm_from_midi(midi_file_path):
     midi = pretty_midi.PrettyMIDI(midi_file_path)

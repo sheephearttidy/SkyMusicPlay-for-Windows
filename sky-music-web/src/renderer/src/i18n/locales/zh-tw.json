@@ -59,6 +59,9 @@
       "scale6": "6組音階"
     },
     "star_transfer": "開始轉換",
+    "one_click_transfer": "一鍵轉譜（自動選調）",
+    "one_click_tips": "無需任何設定，自動選擇最合適的八度，每首歌只出一個譜",
+    "advanced": "進階選項",
     "title": "轉換歌曲",
     "transfer_fail": "轉換失敗",
     "transfer_progress": "轉換進度",

@@ -1,6 +1,33 @@
 <template>
   <n-flex align="center" style="margin-top: 15px;">
-    <n-switch size="medium" v-model:value="is_singular" @update:value="singularChange" :rail-style="railStyle" :round="false"> 
+    <n-upload
+      action="http://localhost:9899/fileUpload"
+      multiple
+      style="width: 110px; height: 40px"
+      accept=".mp3,.flac,.wav,.m4a,.ogg,.mid"
+      :show-file-list="false"
+      @finish="handleFinish"
+    >
+    <n-button size="large" type="info" ghost color="#F2C9C4"> {{ t("kube.chose_music") }}
+      <template #icon>
+        <n-icon size="25px"><CloudArrowUp32Filled /></n-icon>
+      </template>
+    </n-button>
+    </n-upload>
+    <n-button size="large" type="primary" :loading="processFlag" @click="handleOneClickTranslate" style="margin-left: 7px; width: 220px;" color="#F2C9C4">
+      ✨ {{ t("kube.one_click_transfer") }}
+      <template #icon>
+        <n-icon size="25px"><ArrowSync24Regular /></n-icon>
+      </template>
+    </n-button>
+    <n-gradient-text  gradient="linear-gradient(90deg, rgb(242,201,196), rgb(221,242,196))">
+      {{ t("kube.one_click_tips") }}
+    </n-gradient-text>
+    <div style="flex-basis: 100%;" />
+    <n-divider title-placement="left" style="margin: 0px; flex-basis: 100%;">
+      {{ t("kube.advanced") }}
+    </n-divider>
+    <n-switch size="medium" v-model:value="is_singular" @update:value="singularChange" :rail-style="railStyle" :round="false">
         <template #checked-icon>
           🤔
         </template>
@@ -93,22 +120,8 @@
       processing
     />
     <div style="flex-basis: 100%;" />
-    <n-upload
-      action="http://localhost:9899/fileUpload"
-      multiple
-      style="width: 100px; height: 34px"
-      accept=".mp3,.flac,.wav,.m4a,.ogg,.mid"
-      :show-file-list="false"
-      @finish="handleFinish"
-    >
-    <n-button type="info" ghost color="#F2C9C4"> {{ t("kube.chose_music") }} 
-      <template #icon>
-        <n-icon size="25px"><CloudArrowUp32Filled /></n-icon>
-      </template>
-    </n-button>
-    </n-upload>
     <n-button type="primary" ghost :loading="processFlag" @click="handleStartTranslate" style="margin-left: 7px;" color="#F2E8C4">
-      {{ t("kube.star_transfer") }} 
+      {{ t("kube.star_transfer") }}
       <template #icon>
         <n-icon size="25px"><ArrowSync24Regular /></n-icon>
       </template>
@@ -650,6 +663,30 @@ async function getProgress() {
     }
   } catch (error) {
     console.error(t('messeage.progress_fail'), error);
+  }
+}
+
+/**
+ * 一键转谱：零参数，自动选调，每首歌只生成一个谱子
+ */
+async function handleOneClickTranslate() {
+  if (processFlag.value) return;
+  processFlag.value = true;
+  message.success(t('kube.star_transfer'));
+
+  if (!progressInterval) {
+    progressInterval = setInterval(getProgress, 1000) as unknown as number;
+  }
+
+  try {
+    await sendData("translate", { operate: "translate_simple", value: "" });
+    reloadTable();
+    message.success(t('kube.transfer_success'));
+  } catch (error) {
+    console.error(t('kube.transfer_fail'), error);
+  } finally {
+    processFlag.value = false;
+    window.api.sync_sheet_2_el()
   }
 }
 

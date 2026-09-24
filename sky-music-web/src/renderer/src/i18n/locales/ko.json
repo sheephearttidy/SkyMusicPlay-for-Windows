@@ -59,6 +59,9 @@
       "scale6": "6 개의 스케일 세트"
     },
     "star_transfer": "변환 시작",
+    "one_click_transfer": "원클릭 변환(자동 조옮김)",
+    "one_click_tips": "설정 불필요. 최적 옥타브를 자동 선택하며 곡당 악보 하나만 생성합니다",
+    "advanced": "고급 옵션",
     "title": "노래를 변환합니다",
     "transfer_fail": "변환이 실패했습니다",
     "transfer_progress": "전환 진행",

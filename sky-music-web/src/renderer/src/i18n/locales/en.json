@@ -59,6 +59,9 @@
       "scale6": "6 sets"
     },
     "star_transfer": "conversion",
+    "one_click_transfer": "One-Click Convert",
+    "one_click_tips": "No settings needed. The best octave is picked automatically, one sheet per song.",
+    "advanced": "Advanced Options",
     "title": "Convert songs",
     "transfer_fail": "Conversion failed",
     "transfer_progress": "Conversion progress",
